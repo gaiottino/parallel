@@ -82,6 +82,7 @@ class Parallel
     results = []
     current = -1
     exception = nil
+    callback = options[:callback]
 
     in_threads(options[:count]) do
       # as long as there are more items, work on one of them
@@ -93,6 +94,11 @@ class Parallel
 
         begin
           results[index] = call_with_index(items, index, options, &block)
+          begin
+            callback.call(results[index]) if callback
+          rescue => e
+            # ignore callback errors
+          end
         rescue Exception => e
           exception = e
           break
@@ -108,6 +114,8 @@ class Parallel
   def self.work_in_processes(items, options, &blk)
     workers = Array.new(options[:count]).map{ worker(items, options, &blk) }
     Parallel.kill_on_ctrl_c(workers.map{|worker| worker[:pid] })
+
+    callback = options[:callback]
 
     current_index = -1
 
@@ -127,6 +135,13 @@ class Parallel
           while output = worker[:read].gets
             # store output from worker
             result_index, output = decode(output.chomp)
+            
+            begin
+              callback.call(output) if callback
+            rescue => e
+              # ignore callback errors
+            end
+            
             if ExceptionWrapper === output
               exception = output.exception
               break

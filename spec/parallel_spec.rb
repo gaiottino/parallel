@@ -158,4 +158,16 @@ describe Parallel do
       `ruby spec/cases/each_with_index.rb 2>&1`.should == 'a0b1'
     end
   end
+  
+  describe :each_with_callbacks do
+    it 'calls a callback on each completed piece of work (in processes)' do
+      `ruby spec/cases/each_with_callbacks.rb 2>&1`.chomp.split("\n").sort.should == %w(2 4 6 8 10 12 14 16 18 20).sort
+    end
+    
+    it 'calls a callback on each completed piece of work (in threads)' do
+      results = []
+      Parallel.map(1..10, :callback => proc { |x| results << x }, :in_threads => 2) { |x| x * 2 }
+      results.sort.should == [2, 4, 6, 8, 10, 12, 14, 16, 18, 20]
+    end
+  end
 end
